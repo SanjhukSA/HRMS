@@ -1,11 +1,20 @@
 package com.MyNicProject.hrms.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "training_record")
+@Table(name = "training_record", indexes = {
+        @Index(name = "idx_training_record_employee_id", columnList = "employee_id"),
+        @Index(name = "idx_training_record_module_id", columnList = "module_id"),
+        @Index(name = "idx_training_record_status", columnList = "status")
+})
+@Getter
+@Setter
 public class TrainingRecord {
 
     @Id
@@ -26,8 +35,9 @@ public class TrainingRecord {
     @Column(name = "instructor_name")
     private String instructorName;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private String status = "In Progress";
+    private Status status = Status.IN_PROGRESS;
 
     @Column(name = "issue_date")
     private LocalDate issueDate;
@@ -51,41 +61,6 @@ public class TrainingRecord {
     @Column(name = "uploaded_at", updatable = false)
     private LocalDateTime uploadedAt = LocalDateTime.now();
 
-    public Long getRecordId() {return recordId;}
-    public void setRecordId(Long recordId) {this.recordId = recordId;}
-
-    public TrainingModule getModule() {return module;}
-    public void setModule(TrainingModule module) {this.module = module;}
-
-    public Employee getEmployee() {return employee;}
-    public void setEmployee(Employee employee) {this.employee = employee;}
-
-    public String getInstructorName() {return instructorName;}
-    public void setInstructorName(String instructorName) {this.instructorName = instructorName;}
-
-    public String getStatus() {return status;}
-    public void setStatus(String status) {this.status = status;}
-
-    public LocalDate getIssueDate() {return issueDate;}
-    public void setIssueDate(LocalDate issueDate) {this.issueDate = issueDate;}
-
-    public String getRemarks() {return remarks;}
-    public void setRemarks(String remarks) {this.remarks = remarks;}
-
-    public String getCertificateNumber() {return certificateNumber;}
-    public void setCertificateNumber(String certificateNumber) {this.certificateNumber = certificateNumber;}
-
-    public String getFileName() {return fileName;}
-    public void setFileName(String fileName) {this.fileName = fileName;}
-
-    public String getFileType() {return fileType;}
-    public void setFileType(String fileType) {this.fileType = fileType;}
-
-    public String getFilePath() {return filePath;}
-    public void setFilePath(String filePath) {this.filePath = filePath;}
-
-    public LocalDateTime getUploadedAt() {return uploadedAt;}
-    public void setUploadedAt(LocalDateTime uploadedAt) {this.uploadedAt = uploadedAt;}
 
 
 }

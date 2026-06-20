@@ -1,9 +1,13 @@
 package com.MyNicProject.hrms.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "department")
+@Getter
+@Setter
 public class Department {
 
     @Id
@@ -14,9 +18,4 @@ public class Department {
     @Column(name = "department_name", nullable = false, unique = true)
     private String departmentName;
 
-    public Long getDepartmentId() { return departmentId; }
-    public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
-
-    public String getDepartmentName() { return departmentName; }
-    public void setDepartmentName(String departmentName) { this.departmentName = departmentName; }
 }

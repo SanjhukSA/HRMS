@@ -1,9 +1,14 @@
 package com.MyNicProject.hrms.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.stereotype.Service;
 
 @Entity
 @Table(name = "training_module")
+@Getter
+@Setter
 public class TrainingModule {
 
     @Id
@@ -11,18 +16,11 @@ public class TrainingModule {
     @Column(name = "module_id")
     private Long moduleId;
 
-    @Column(name = "module_name", nullable = false)
+    @Column(name = "module_name", nullable = false,unique = true)
     private String moduleName;
 
     @Column(name = "training_type", nullable = false)
     private String trainingType;
 
-    public Long getModuleId() { return moduleId; }
-    public void setModuleId(Long moduleId) { this.moduleId = moduleId; }
 
-    public String getModuleName() { return moduleName; }
-    public void setModuleName(String moduleName) { this.moduleName = moduleName; }
-
-    public String getTrainingType() { return trainingType; }
-    public void setTrainingType(String trainingType) { this.trainingType = trainingType; }
 }

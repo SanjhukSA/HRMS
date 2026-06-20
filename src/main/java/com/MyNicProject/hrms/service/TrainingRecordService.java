@@ -105,8 +105,8 @@ public class TrainingRecordService {
 
            record.setFileName(originalFname);
            String contentType = file.getContentType();
-           record.setFileType((contentType == null || contentType.isEmpty())?"application/octet-stream":contentType);
-           record.setFileType(targetLocation.toString());
+           record.setFileType(contentType == null || contentType.isEmpty()?"application/octet-stream":contentType);
+           record.setFilePath(targetLocation.toString());
        }
 
      return recordRepo.save(record);

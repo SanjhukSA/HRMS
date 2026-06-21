@@ -37,12 +37,12 @@ public class AuthController {
     @PostMapping("/provision")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> provisionLogin(@Valid @RequestBody ProvisionLoginRequest request) {
-        boolean success = authService.provisionLogin(
-                request.employeeId(), request.password(), Role.valueOf(request.role()));
+        Role role = (request.role() == null || request.role().isBlank())
+                ? Role.USER
+                : Role.valueOf(request.role());
 
-        if (!success) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Employee not found: " + request.employeeId());
-        }
+        authService.provisionLogin(
+                request.employeeId(), request.employeeName(), request.password(), role);
 
         return ResponseEntity.ok("Login provisioned for " + request.employeeId());
     }

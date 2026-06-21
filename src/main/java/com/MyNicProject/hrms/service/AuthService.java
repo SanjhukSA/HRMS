@@ -50,20 +50,24 @@ public class AuthService {
         return new JwtResponse(token, employee.getEmployeeId(), employee.getRole().name());
     }
 
-
     @Transactional
-    public boolean provisionLogin(String employeeId, String rawPassword, Role role) {
-        Optional<Employee> employeeOpt = employeeRepository.findByEmployeeId(employeeId);
+    public boolean provisionLogin(String employeeId, String employeeName, String rawPassword, Role role) {
+        Employee employee = employeeRepository.findByEmployeeId(employeeId)
+                .orElseGet(() -> {
 
-        if (employeeOpt.isEmpty()) {
-            return false;
-        }
+                    Employee newEmployee = new Employee();
+                    newEmployee.setEmployeeId(employeeId);
+                    newEmployee.setEmployeeName(
+                            (employeeName == null || employeeName.isBlank()) ? employeeId : employeeName
+                    );
+                    return newEmployee;
+                });
 
-        Employee employee = employeeOpt.get();
         employee.setPasswordHash(passwordEncoder.encode(rawPassword));
-        employee.setRole(role);
+        employee.setRole(role != null ? role : Role.USER);
         employee.setCanLogin(true);
         employeeRepository.save(employee);
         return true;
     }
+
 }

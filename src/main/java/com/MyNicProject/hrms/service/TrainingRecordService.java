@@ -1,14 +1,8 @@
 package com.MyNicProject.hrms.service;
 
-import com.MyNicProject.hrms.entity.Department;
-import com.MyNicProject.hrms.entity.Employee;
-import com.MyNicProject.hrms.entity.TrainingModule;
-import com.MyNicProject.hrms.entity.TrainingRecord;
-import com.MyNicProject.hrms.repository.DepartmentRepository;
-import com.MyNicProject.hrms.repository.EmployeeRepository;
-import com.MyNicProject.hrms.repository.TrainingModuleRepository;
-import com.MyNicProject.hrms.repository.TrainingRecordRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.MyNicProject.hrms.dto.TrainingRecordRequest;
+import com.MyNicProject.hrms.entity.*;
+import com.MyNicProject.hrms.repository.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,96 +14,116 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.time.LocalDate;
-import java.util.Optional;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class TrainingRecordService {
 
+
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            "application/pdf", "image/jpeg", "image/png"
+    );
+
     @Value("${file.upload-dir:uploads/certificates}")
-    private  String uploadDir;
+    private String uploadDir;
 
-    @Autowired
-    private DepartmentRepository departmentRepo;
+    private final DepartmentRepository departmentRepo;
+    private final EmployeeRepository employeeRepo;
+    private final TrainingRecordRepository recordRepo;
+    private final TrainingModuleRepository moduleRepo;
 
-    @Autowired
-    private EmployeeRepository employeeRepo;
+    public TrainingRecordService(DepartmentRepository departmentRepo, EmployeeRepository employeeRepo,
+                                 TrainingRecordRepository recordRepo, TrainingModuleRepository moduleRepo) {
+        this.departmentRepo = departmentRepo;
+        this.employeeRepo = employeeRepo;
+        this.recordRepo = recordRepo;
+        this.moduleRepo = moduleRepo;
+    }
 
-    @Autowired
-    private TrainingRecordRepository recordRepo;
 
-    @Autowired
-    private TrainingModuleRepository moduleRepo;
+    @Transactional
+    public TrainingRecord saveRecord(TrainingRecordRequest req, MultipartFile file) throws IOException {
 
 
-   @Transactional
-    public TrainingRecord saveRecord(
-            String employeeName, String employeeId, String departmentName,
-            String moduleName, String trainingType , String instructorName,
-            String status, LocalDate issueDate , String remarks,String certificateNum,
-            MultipartFile file) throws IOException{
 
-       Optional<Department> dept = departmentRepo.findByDepartmentName(departmentName);
-       Department department;
-       if(dept.isPresent()){
-           department = dept.get();
-       }else{
-           Department newDept = new Department();
-           newDept.setDepartmentName(departmentName);
-           department = departmentRepo.save(newDept);
-       }
+        if (file != null && !file.isEmpty()) {
+            String contentType = file.getContentType();
+            if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
+                return null;
+            }
+        }
 
-       Optional<Employee> emp = employeeRepo.findByEmployeeId(employeeId);
-       Employee employee;
-       if(emp.isPresent()){
-           employee = emp.get();
-       }else{
-           Employee newEmp = new Employee();
-           newEmp.setEmployeeName(employeeName);
-           newEmp.setEmployeeId(employeeId);
-           newEmp.setDepartment(department);
-           employee = employeeRepo.save(newEmp);
-       }
+        Department department = departmentRepo.findByDepartmentName(req.department())
+                .orElseGet(() -> {
+                    Department d = new Department();
+                    d.setDepartmentName(req.department());
+                    return departmentRepo.save(d);
+                });
 
-       Optional< TrainingModule> Tmodule = moduleRepo.findByModuleName(moduleName);
-       TrainingModule module ;
-       if(Tmodule.isPresent()){
-           module = Tmodule.get();
-       }else{
-           TrainingModule newModule = new TrainingModule();
-           newModule.setModuleName(moduleName);
-           newModule.setTrainingType(trainingType);
-           module = moduleRepo.save(newModule);
-       }
+        Employee employee = employeeRepo.findByEmployeeId(req.employeeId())
+                .orElseGet(() -> {
+                    Employee e = new Employee();
+                    e.setEmployeeId(req.employeeId());
+                    e.setEmployeeName(req.employeeName());
+                    e.setDepartment(department);
+                    return employeeRepo.save(e);
+                });
 
-       TrainingRecord record = new TrainingRecord();
-       record.setEmployee(employee);
-       record.setModule(module);
-       record.setInstructorName(instructorName);
-       record.setCertificateNumber(certificateNum);
-       record.setRemarks(remarks);
-       record.setIssueDate(issueDate);
-       record.setStatus(status);
+        TrainingModule module = moduleRepo.findByModuleName(req.trainingModule())
+                .orElseGet(() -> {
+                    TrainingModule m = new TrainingModule();
+                    m.setModuleName(req.trainingModule());
+                    m.setTrainingType(req.trainingType());
+                    return moduleRepo.save(m);
+                });
 
-       if(file != null && !file.isEmpty()){
-           Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
-           if(!Files.exists(uploadPath)){
-               Files.createDirectories(uploadPath);
-           }
-           String originalFname= StringUtils.cleanPath(file.getOriginalFilename());
-           String uniqueFname = UUID.randomUUID().toString()+ "-"+originalFname;
-           Path targetLocation = uploadPath.resolve(uniqueFname);
+        TrainingRecord record = new TrainingRecord();
+        record.setEmployee(employee);
+        record.setModule(module);
+        record.setInstructorName(req.instructor());
+        record.setCertificateNumber(req.certificateNumber());
+        record.setRemarks(req.remarks());
+        record.setIssueDate(req.issueDate());
+        if (req.status() != null) {
+            record.setStatus(Status.valueOf(req.status()));
+        }
 
-           Files.copy(file.getInputStream(),targetLocation, StandardCopyOption.REPLACE_EXISTING);
+        if (file != null && !file.isEmpty()) {
+            attachFile(record, file);
+        }
 
-           record.setFileName(originalFname);
-           String contentType = file.getContentType();
-           record.setFileType(contentType == null || contentType.isEmpty()?"application/octet-stream":contentType);
-           record.setFilePath(targetLocation.toString());
-       }
+        return recordRepo.save(record);
+    }
 
-     return recordRepo.save(record);
-   }
+    private void attachFile(TrainingRecord record, MultipartFile file) throws IOException {
+        Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
 
+        String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
+        String safeFilename = originalFilename.replaceAll("[\\r\\n\"]", "_"); // strip CR/LF/quotes
+        String uniqueFilename = UUID.randomUUID() + "-" + safeFilename;
+
+        Path targetLocation = uploadPath.resolve(uniqueFilename);
+        Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+
+
+        record.setFileName(safeFilename);
+        record.setFileType(file.getContentType());
+        record.setFilePath(targetLocation.toString());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TrainingRecord> getRecordsForEmployee(String employeeId) {
+        return recordRepo.findByEmployeeIdWithDetails(employeeId);
+    }
+
+
+    @Transactional(readOnly = true)
+    public TrainingRecord getRecordById(Long recordId) {
+        return recordRepo.findById(recordId).orElse(null);
+    }
 }

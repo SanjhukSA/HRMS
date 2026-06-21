@@ -1,89 +1,114 @@
 package com.MyNicProject.hrms.controller;
 
+import com.MyNicProject.hrms.dto.TrainingRecordRequest;
+import com.MyNicProject.hrms.dto.TrainingRecordResponse;
 import com.MyNicProject.hrms.entity.TrainingRecord;
-import com.MyNicProject.hrms.repository.TrainingRecordRepository;
 import com.MyNicProject.hrms.service.TrainingRecordService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/certificates")
-@CrossOrigin(origins = "*")
 public class TrainingRecordController {
 
-    @Autowired
-    private TrainingRecordService trainingService;
+    private final TrainingRecordService trainingService;
 
-    @Autowired
-    private TrainingRecordRepository trainingRepo;
+    public TrainingRecordController(TrainingRecordService trainingService) {
+        this.trainingService = trainingService;
+    }
 
     @PostMapping(value = "/save", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<String> saveTrainingRecord(
-            @RequestParam("employeeName") String employeeName,
-            @RequestParam("employeeId") String employeeId,
-            @RequestParam("department")String department,
-            @RequestParam("trainingModule") String trainingModule,
-            @RequestParam("trainingType") String trainingType,
-            @RequestParam("instructor") String instructor,
-            @RequestParam("status") String status,
-            @RequestParam(value = "issueDate",required = false) String issueDate,
-            @RequestParam(value = "certificateNumber",required = false)String certificateNumber,
-            @RequestParam(value = "remarks",required = false) String remarks,
-            @RequestParam(value = "certificateFile", required = false)MultipartFile file){
+    public ResponseEntity<?> saveTrainingRecord(
+            @Valid @RequestPart("data") TrainingRecordRequest request,
+            @RequestPart(value = "certificateFile", required = false) MultipartFile file) {
 
-        try{
-            LocalDate parsedDate = null;
-            if(issueDate != null && !issueDate.isEmpty()){
-                parsedDate = LocalDate.parse(issueDate);
+        try {
+            TrainingRecord saved = trainingService.saveRecord(request, file);
+
+
+            if (saved == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("Only PDF, JPEG, or PNG files are allowed");
             }
 
-            trainingService.saveRecord(
-                    employeeName,employeeId,department,trainingModule,trainingType,instructor,status,
-                    parsedDate,remarks,certificateNumber,file);
-            return ResponseEntity.status(HttpStatus.OK).body("Certificate saved successfully gng");
+            return ResponseEntity.ok(TrainingRecordResponse.from(saved));
+
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("GNG we have faced some error"+ e.getMessage());
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to save certificate: " + e.getMessage());
         }
     }
 
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<TrainingRecord>> getRecordsByEmployeeId(@PathVariable String employeeId){
-        List<TrainingRecord> records = trainingRepo.findByEmployee_EmployeeId(employeeId);
-        return ResponseEntity.ok(records);
+    public ResponseEntity<?> getRecordsByEmployeeId(
+            @PathVariable String employeeId, Authentication authentication) {
+
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isSelf = authentication.getName().equals(employeeId);
+
+        if (!isAdmin && !isSelf) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You can only view your own certificates");
+        }
+
+        List<TrainingRecordResponse> responses = trainingService.getRecordsForEmployee(employeeId)
+                .stream()
+                .map(TrainingRecordResponse::from)
+                .toList();
+
+        return ResponseEntity.ok(responses);
     }
 
     @GetMapping("/download/{recordId}")
-    public ResponseEntity<Resource> downloadCertificate(@PathVariable Long recordId){
+    public ResponseEntity<?> downloadCertificate(@PathVariable Long recordId, Authentication authentication) {
 
-        try{
-            Optional<TrainingRecord> record = trainingRepo.findById(recordId);
-            if(record.isPresent() && record.get().getFilePath() !=null){
-                TrainingRecord newRecord = record.get();
-                Path filePath = Paths.get(newRecord.getFilePath()).normalize();
-                Resource resource = new UrlResource(filePath.toUri());
-                if(resource.exists()){
-                    return ResponseEntity.ok().contentType(MediaType.parseMediaType(newRecord.getFileType()))
-                            .header(HttpHeaders.CONTENT_DISPOSITION,"inline ; filename=\"" + newRecord.getFileName() +"\"")
-                            .body(resource);
-                }
+        TrainingRecord record = trainingService.getRecordById(recordId);
+
+        if (record == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Certificate not found: " + recordId);
+        }
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isOwner = authentication.getName().equals(record.getEmployee().getEmployeeId());
+
+        if (!isAdmin && !isOwner) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You can only download your own certificates");
+        }
+
+        if (record.getFilePath() == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No file attached to this certificate");
+        }
+
+        try {
+            Path filePath = Paths.get(record.getFilePath()).normalize();
+            Resource resource = new UrlResource(filePath.toUri());
+
+            if (!resource.exists()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("File missing on server");
             }
-            return ResponseEntity.notFound().build();
-        }catch (Exception e){
-            return ResponseEntity.internalServerError().build();
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(record.getFileType()))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + record.getFileName() + "\"")
+                    .body(resource);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error reading file");
         }
     }
-
 }

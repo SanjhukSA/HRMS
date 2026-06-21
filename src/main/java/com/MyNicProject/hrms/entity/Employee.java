@@ -32,7 +32,7 @@ public class Employee {
     @Column(name ="role",nullable = false)
     private Role role =Role.User;
 
-    @Column(name ="login", nullable = false)
+    @Column(name ="can_login", nullable = false)
     private boolean canLogin = true;
 
     @Column(name = "created_at", updatable = false)

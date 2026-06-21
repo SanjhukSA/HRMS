@@ -30,7 +30,7 @@ public class Employee {
 
     @Enumerated(EnumType.STRING)
     @Column(name ="role",nullable = false)
-    private Role role =Role.User;
+    private Role role =Role.USER;
 
     @Column(name ="can_login", nullable = false)
     private boolean canLogin = true;

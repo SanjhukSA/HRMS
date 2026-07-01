@@ -126,4 +126,26 @@ public class TrainingRecordService {
     public TrainingRecord getRecordById(Long recordId) {
         return recordRepo.findById(recordId).orElse(null);
     }
+
+    @Transactional(readOnly = true)
+    public List<TrainingRecord> getAllRecords() {
+        return recordRepo.findAllWithDetails();
+    }
+
+    @Transactional
+    public boolean deleteRecord(Long recordId) {
+        TrainingRecord record = recordRepo.findById(recordId).orElse(null);
+        if (record == null) {
+            return false;
+        }
+        if (record.getFilePath() != null) {
+            try {
+                Files.deleteIfExists(Paths.get(record.getFilePath()));
+            } catch (IOException ignored) {
+                // file already gone / not critical to the delete operation
+            }
+        }
+        recordRepo.deleteById(recordId);
+        return true;
+    }
 }

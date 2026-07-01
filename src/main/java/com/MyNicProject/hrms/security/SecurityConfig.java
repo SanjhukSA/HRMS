@@ -60,9 +60,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/provision").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/certificates/all").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/certificates/employee/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/certificates/download/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/certificates/save").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/certificates/**").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
@@ -75,8 +77,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
 
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173/"));
-        config.setAllowedMethods(List.of("GET", "POST"));
+        config.setAllowedOrigins(List.of("http://localhost:5173"));
+        config.setAllowedMethods(List.of("GET", "POST", "DELETE"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);
 

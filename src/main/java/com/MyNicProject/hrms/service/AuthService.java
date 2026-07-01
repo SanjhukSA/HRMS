@@ -47,7 +47,7 @@ public class AuthService {
 
         Employee employee = employeeOpt.get();
         String token = jwtUtil.generateToken(employee.getEmployeeId(), employee.getRole().name());
-        return new JwtResponse(token, employee.getEmployeeId(), employee.getRole().name());
+        return new JwtResponse(token, employee.getEmployeeId(), employee.getEmployeeName(), employee.getRole().name());
     }
 
     @Transactional

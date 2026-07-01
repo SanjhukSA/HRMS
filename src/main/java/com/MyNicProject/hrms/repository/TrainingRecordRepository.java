@@ -19,4 +19,12 @@ public interface TrainingRecordRepository extends JpaRepository<TrainingRecord, 
         WHERE e.employeeId = :employeeId
         """)
     List<TrainingRecord> findByEmployeeIdWithDetails(@Param("employeeId") String employeeId);
+
+    @Query("""
+        SELECT tr FROM TrainingRecord tr
+        JOIN FETCH tr.employee e
+        JOIN FETCH tr.module m
+        ORDER BY tr.recordId DESC
+        """)
+    List<TrainingRecord> findAllWithDetails();
 }

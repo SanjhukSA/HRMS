@@ -35,10 +35,12 @@ public class AuthService {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.employeeId(), request.password()));
-        } catch (Exception e) {
-
+        } catch (org.springframework.security.core.AuthenticationException e) {
+            // Genuine bad credentials / disabled account -> treat as invalid login
             return null;
         }
+        // Any other exception (e.g. DB connectivity) is allowed to propagate
+        // so it surfaces as a 500 instead of being misreported as bad credentials.
 
         Optional<Employee> employeeOpt = employeeRepository.findByEmployeeId(request.employeeId());
         if (employeeOpt.isEmpty()) {

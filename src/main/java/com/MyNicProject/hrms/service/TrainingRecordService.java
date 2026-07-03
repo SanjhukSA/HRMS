@@ -44,8 +44,7 @@ public class TrainingRecordService {
 
 
     @Transactional
-    public TrainingRecord saveRecord(TrainingRecordRequest req, MultipartFile file) throws IOException {
-
+    public TrainingRecord saveRecord(Employee employee, TrainingRecordRequest req, MultipartFile file) throws IOException {
 
 
         if (file != null && !file.isEmpty()) {
@@ -55,21 +54,15 @@ public class TrainingRecordService {
             }
         }
 
-        Department department = departmentRepo.findByDepartmentName(req.department())
-                .orElseGet(() -> {
-                    Department d = new Department();
-                    d.setDepartmentName(req.department());
-                    return departmentRepo.save(d);
-                });
-
-        Employee employee = employeeRepo.findByEmployeeId(req.employeeId())
-                .orElseGet(() -> {
-                    Employee e = new Employee();
-                    e.setEmployeeId(req.employeeId());
-                    e.setEmployeeName(req.employeeName());
-                    e.setDepartment(department);
-                    return employeeRepo.save(e);
-                });
+        Department department = employee.getDepartment();
+        if (department == null) {
+            department = departmentRepo.findByDepartmentName(req.department())
+                    .orElseGet(() -> {
+                        Department d = new Department();
+                        d.setDepartmentName(req.department());
+                        return departmentRepo.save(d);
+                    });
+        }
 
         TrainingModule module = moduleRepo.findByModuleName(req.trainingModule())
                 .orElseGet(() -> {

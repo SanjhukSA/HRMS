@@ -29,11 +29,12 @@ public class Employee {
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
-    @Column(name ="role",nullable = false)
-    private Role role =Role.USER;
+    @Column(name = "role")
+    private Role role; // null until an admin approves the account and assigns a role
 
-    @Column(name ="can_login", nullable = false)
-    private boolean canLogin = true;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_status", nullable = false)
+    private AccountStatus accountStatus = AccountStatus.PENDING;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

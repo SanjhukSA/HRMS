@@ -2,7 +2,9 @@ package com.MyNicProject.hrms.controller;
 
 import com.MyNicProject.hrms.dto.TrainingRecordRequest;
 import com.MyNicProject.hrms.dto.TrainingRecordResponse;
+import com.MyNicProject.hrms.entity.Employee;
 import com.MyNicProject.hrms.entity.TrainingRecord;
+import com.MyNicProject.hrms.repository.EmployeeRepository;
 import com.MyNicProject.hrms.service.TrainingRecordService;
 import jakarta.validation.Valid;
 import org.springframework.core.io.Resource;
@@ -19,24 +21,43 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/certificates")
 public class TrainingRecordController {
 
     private final TrainingRecordService trainingService;
+    private final EmployeeRepository employeeRepository;
 
-    public TrainingRecordController(TrainingRecordService trainingService) {
+    public TrainingRecordController(TrainingRecordService trainingService, EmployeeRepository employeeRepository) {
         this.trainingService = trainingService;
+        this.employeeRepository = employeeRepository;
     }
 
     @PostMapping(value = "/save", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> saveTrainingRecord(
             @Valid @RequestPart("data") TrainingRecordRequest request,
-            @RequestPart(value = "certificateFile", required = false) MultipartFile file) {
+            @RequestPart(value = "certificateFile", required = false) MultipartFile file,
+            Authentication authentication) {
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        // A non-admin can only ever submit for themselves — resolved from the
+        // authenticated token, never trusted from the request body, even though
+        // the frontend already locks this field for non-admins.
+        String targetEmployeeId = isAdmin ? request.employeeId() : authentication.getName();
+
+        Optional<Employee> employeeOpt = employeeRepository.findByEmployeeId(targetEmployeeId);
+        if (employeeOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body("No employee record found for " + targetEmployeeId
+                            + ". Ask an administrator to provision your account first.");
+        }
 
         try {
-            TrainingRecord saved = trainingService.saveRecord(request, file);
+            TrainingRecord saved = trainingService.saveRecord(employeeOpt.get(), request, file);
 
 
             if (saved == null) {

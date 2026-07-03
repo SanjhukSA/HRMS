@@ -54,6 +54,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        System.out.println(">>> SecurityConfig loaded: register endpoint should be permitAll <<<");
         http
                 .csrf(csrf -> csrf.disable()) // safe here: we use JWTs, not cookies
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -68,6 +69,10 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/register").permitAll()
+                        .requestMatchers("/api/auth/pending").hasRole("ADMIN")
+                        .requestMatchers("/api/auth/approve").hasRole("ADMIN")
+                        .requestMatchers("/api/auth/reject/**").hasRole("ADMIN")
                         .requestMatchers("/api/auth/provision").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/certificates/all").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/certificates/employee/**").hasAnyRole("USER", "ADMIN")

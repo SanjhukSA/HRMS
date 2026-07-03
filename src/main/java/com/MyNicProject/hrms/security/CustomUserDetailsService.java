@@ -1,5 +1,6 @@
 package com.MyNicProject.hrms.security;
 
+import com.MyNicProject.hrms.entity.AccountStatus;
 import com.MyNicProject.hrms.entity.Employee;
 import com.MyNicProject.hrms.repository.EmployeeRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -24,8 +25,10 @@ public class CustomUserDetailsService implements UserDetailsService {
         Employee employee = employeeRepository.findByEmployeeId(employeeId)
                 .orElseThrow(() -> new UsernameNotFoundException("No employee: " + employeeId));
 
-        if (!employee.isCanLogin() || employee.getPasswordHash() == null) {
-            throw new UsernameNotFoundException("Login not enabled for: " + employeeId);
+        if (employee.getAccountStatus() != AccountStatus.APPROVED
+                || employee.getPasswordHash() == null
+                || employee.getRole() == null) {
+            throw new UsernameNotFoundException("Account not approved for login: " + employeeId);
         }
 
         return User.builder()

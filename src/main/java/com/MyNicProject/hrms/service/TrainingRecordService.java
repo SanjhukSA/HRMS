@@ -26,9 +26,10 @@ public class TrainingRecordService {
             "application/pdf", "image/jpeg", "image/png"
     );
 
-
+    // Distinct outcomes saveRecord/completeRecord can hit, so the controller
+    // can return the right status code/message instead of a bare null.
     public enum SaveOutcome {
-        OK, INVALID_FILE_TYPE, CERTIFICATE_REQUIRED_FOR_COMPLETED
+        OK, INVALID_FILE_TYPE, CERTIFICATE_REQUIRED_FOR_COMPLETED, RECORD_NOT_IN_PROGRESS
     }
 
     public record SaveResult(SaveOutcome outcome, TrainingRecord record) {
@@ -94,7 +95,8 @@ public class TrainingRecordService {
         record.setRemarks(req.remarks());
         record.setIssueDate(req.issueDate());
         record.setStatus(status);
-
+        // A record only becomes reviewable once it's COMPLETED; approvalStatus
+        // defaults to WAITING regardless, but only means something once COMPLETED.
 
         if (hasFile) {
             attachFile(record, file);
@@ -113,7 +115,7 @@ public class TrainingRecordService {
     @Transactional
     public SaveResult completeRecord(TrainingRecord record, CompleteRecordRequest req, MultipartFile file) throws IOException {
         if (record.getStatus() != Status.IN_PROGRESS) {
-            return SaveResult.error(SaveOutcome.CERTIFICATE_REQUIRED_FOR_COMPLETED); // reused: "not eligible"
+            return SaveResult.error(SaveOutcome.RECORD_NOT_IN_PROGRESS);
         }
 
         boolean hasFile = file != null && !file.isEmpty();
@@ -133,12 +135,17 @@ public class TrainingRecordService {
         if (req.remarks() != null && !req.remarks().isBlank()) {
             record.setRemarks(req.remarks());
         }
+
         attachFile(record, file);
+
+        // Explicit state transition: uploading the certificate always moves
+        // an IN_PROGRESS record to COMPLETED, and resets admin review to WAITING.
         record.setStatus(Status.COMPLETED);
         record.setApprovalStatus(ApprovalStatus.WAITING);
         record.setAdminRemarks(null);
 
-        return SaveResult.ok(recordRepo.save(record));
+        TrainingRecord saved = recordRepo.save(record);
+        return SaveResult.ok(saved);
     }
 
     /**
@@ -174,12 +181,13 @@ public class TrainingRecordService {
         Path targetLocation = uploadPath.resolve(uniqueFilename);
         Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
-
+        // If this record already had a different file (completing after a
+        // previous attempt), clean up the old one so we don't leak orphans.
         if (record.getFilePath() != null) {
             try {
                 Files.deleteIfExists(Paths.get(record.getFilePath()));
             } catch (IOException ignored) {
-
+                // best-effort cleanup only
             }
         }
 
@@ -218,7 +226,7 @@ public class TrainingRecordService {
             try {
                 Files.deleteIfExists(Paths.get(record.getFilePath()));
             } catch (IOException ignored) {
-
+                // file already gone / not critical to the delete operation
             }
         }
         recordRepo.deleteById(recordId);

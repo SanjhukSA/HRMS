@@ -47,7 +47,8 @@ public class TrainingRecordController {
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
-
+        // A non-admin can only ever submit for themselves — resolved from the
+        // authenticated token, never trusted from the request body.
         String targetEmployeeId = isAdmin ? request.employeeId() : authentication.getName();
 
         Optional<Employee> employeeOpt = employeeRepository.findByEmployeeId(targetEmployeeId);
@@ -67,6 +68,8 @@ public class TrainingRecordController {
                         .body("Only PDF, JPEG, or PNG files are allowed");
                 case CERTIFICATE_REQUIRED_FOR_COMPLETED -> ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body("A certificate file is required to mark a record as Completed");
+                case RECORD_NOT_IN_PROGRESS -> ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body("Unexpected state"); // unreachable for a new record, kept for exhaustiveness
             };
 
         } catch (Exception e) {
@@ -109,7 +112,9 @@ public class TrainingRecordController {
                 case INVALID_FILE_TYPE -> ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body("Only PDF, JPEG, or PNG files are allowed");
                 case CERTIFICATE_REQUIRED_FOR_COMPLETED -> ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("This record can't be completed — it may already be completed, or a certificate is required");
+                        .body("A certificate file is required to complete this record");
+                case RECORD_NOT_IN_PROGRESS -> ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body("This record is not In Progress — it may already be completed");
             };
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -118,7 +123,7 @@ public class TrainingRecordController {
     }
 
     /**
-     *Admin approve/invalidate decision on a COMPLETED record.
+     * Admin's approve/invalidate decision on a COMPLETED record.
      * Replaces the old delete-based workflow entirely.
      */
     @PostMapping("/{recordId}/approve")
@@ -143,7 +148,8 @@ public class TrainingRecordController {
     @GetMapping("/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<TrainingRecordResponse>> getAllRecords() {
-
+        // Returns every record regardless of status (IN_PROGRESS and COMPLETED
+        // both included) — admins need visibility into in-progress records too.
         List<TrainingRecordResponse> responses = trainingService.getAllRecords()
                 .stream()
                 .map(TrainingRecordResponse::from)

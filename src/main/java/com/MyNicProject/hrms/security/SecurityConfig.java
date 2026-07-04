@@ -59,12 +59,22 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex
-                        // No/invalid token -> 401, so the frontend knows to prompt re-login
-                        .authenticationEntryPoint((req, res, e) ->
-                                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required"))
+                        // No/invalid token -> 401, so the frontend knows to prompt re-login.
+                        // Writing directly instead of sendError() — sendError() triggers
+                        // the container's error-page dispatch, which can strip CORS headers
+                        // already set by CorsFilter earlier in the chain, making a real 401/403
+                        // look like a CORS failure to the browser instead.
+                        .authenticationEntryPoint((req, res, e) -> {
+                            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            res.setContentType("text/plain;charset=UTF-8");
+                            res.getWriter().write("Authentication required");
+                        })
                         // Valid token, wrong role -> 403, a genuinely different case for the frontend
-                        .accessDeniedHandler((req, res, e) ->
-                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied"))
+                        .accessDeniedHandler((req, res, e) -> {
+                            res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            res.setContentType("text/plain;charset=UTF-8");
+                            res.getWriter().write("Access denied");
+                        })
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login").permitAll()
@@ -93,7 +103,7 @@ public class SecurityConfig {
 
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:5173"));
-        config.setAllowedMethods(List.of("GET", "POST", "DELETE"));
+        config.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);
 

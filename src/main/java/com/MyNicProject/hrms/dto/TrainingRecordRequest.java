@@ -8,7 +8,6 @@ import java.time.LocalDate;
 public record TrainingRecordRequest(
         @NotBlank String employeeName,
         @NotBlank String employeeId,
-        @NotBlank String department,
         @NotBlank String trainingModule,
         @NotBlank String trainingType,
         @NotBlank String instructor,

@@ -13,6 +13,5 @@ public record SelfRegisterRequest(
         @NotBlank
         @Size(min = 8, message = "Password must be at least 8 characters")
         String password
-        // No role field on purpose — self-registered accounts are unprivileged
-        // (PENDING, no role) until an admin approves and assigns one.
+
 ) {}

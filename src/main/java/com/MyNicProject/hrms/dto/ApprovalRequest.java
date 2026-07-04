@@ -8,5 +8,5 @@ public record ApprovalRequest(
 
         @Pattern(regexp = "USER|ADMIN", message = "role must be USER or ADMIN")
         String role
-        // role is only required when approving; ignored for rejection
+
 ) {}

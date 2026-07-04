@@ -62,5 +62,11 @@ public class TrainingRecord {
     private LocalDateTime uploadedAt = LocalDateTime.now();
 
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", nullable = false)
+    private ApprovalStatus approvalStatus = ApprovalStatus.WAITING;
+
+    @Column(name = "admin_remarks", columnDefinition = "TEXT")
+    private String adminRemarks;
 
 }

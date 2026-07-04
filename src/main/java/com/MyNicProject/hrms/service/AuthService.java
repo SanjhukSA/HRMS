@@ -43,13 +43,10 @@ public class AuthService {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.employeeId(), request.password()));
         } catch (org.springframework.security.core.AuthenticationException e) {
-            // Covers bad credentials AND accounts that are PENDING/REJECTED
-            // (CustomUserDetailsService throws UsernameNotFoundException for those,
-            // which Spring's DaoAuthenticationProvider surfaces as an AuthenticationException here).
+
             return null;
         }
-        // Any other exception (e.g. DB connectivity) is allowed to propagate
-        // so it surfaces as a 500 instead of being misreported as bad credentials.
+
 
         Optional<Employee> employeeOpt = employeeRepository.findByEmployeeId(request.employeeId());
         if (employeeOpt.isEmpty()) {

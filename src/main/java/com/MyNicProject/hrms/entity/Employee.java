@@ -30,7 +30,7 @@ public class Employee {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
-    private Role role; // null until an admin approves the account and assigns a role
+    private Role role;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "account_status", nullable = false)

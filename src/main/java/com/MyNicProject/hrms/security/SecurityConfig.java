@@ -59,11 +59,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex
-                        // No/invalid token -> 401, so the frontend knows to prompt re-login.
-                        // Writing directly instead of sendError() — sendError() triggers
-                        // the container's error-page dispatch, which can strip CORS headers
-                        // already set by CorsFilter earlier in the chain, making a real 401/403
-                        // look like a CORS failure to the browser instead.
+
                         .authenticationEntryPoint((req, res, e) -> {
                             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             res.setContentType("text/plain;charset=UTF-8");
